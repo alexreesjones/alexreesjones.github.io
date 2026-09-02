@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Boat Market Simulator</title>
+  <style>
+    :root { --page:#f4f1eb; --ink:#231f20; --red:#a7262f; --red-dark:#7f1821; --red-soft:#f6e4e5; --blue:#24669a; --blue-dark:#17496f; --blue-soft:#e4f0f8; --orange:#f4c98c; --orange-dark:#8a4d16; --line:#d9c9ca; --white:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--page); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { width:min(1180px,calc(100% - 40px)); margin:0 auto; padding:58px 0 72px; }
+    h1 { margin:0 0 38px; text-align:center; font-size:clamp(2.35rem,6vw,4.8rem); line-height:.98; letter-spacing:-.055em; }
+    .panel { overflow:hidden; margin-bottom:28px; border:1px solid var(--red-dark); border-radius:18px; background:var(--red); box-shadow:0 20px 50px rgba(84,21,26,.16); }
+    .panel-title { margin:0; padding:22px 26px; color:var(--white); font-size:1.45rem; letter-spacing:-.02em; }
+    .table-wrap { margin:0 14px 14px; overflow-x:auto; border-radius:11px; background:var(--white); }
+    table { width:100%; min-width:900px; border-collapse:collapse; table-layout:fixed; }
+    th,td { height:58px; padding:10px 16px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); text-align:center; vertical-align:middle; }
+    th:last-child,td:last-child { border-right:0; }
+    tbody tr:last-child td { border-bottom:0; }
+    th { height:68px; background:var(--red-soft); color:#58131a; font-size:.9rem; line-height:1.25; letter-spacing:.015em; }
+    tbody tr:nth-child(even) { background:#fcf8f8; }
+    tbody tr:hover { background:#f9eeee; }
+    tbody tr.allocation-mismatch,
+    .consumer-panel tbody tr.allocation-mismatch { background:#fff2b8 !important; box-shadow:inset 4px 0 #d79513; }
+    td:first-child { color:var(--red-dark); font-weight:800; }
+    .wta-input { width:112px; padding:8px 10px; border:1px solid #bca8aa; border-radius:7px; background:#fff; color:var(--ink); text-align:center; font:inherit; font-variant-numeric:tabular-nums; }
+    .wta-input:focus { outline:3px solid rgba(167,38,47,.15); border-color:var(--red); }
+    .wta-input[readonly] { background:#f5f1f1; color:#5f5557; cursor:default; }
+    .wta-input[readonly]:focus { outline:none; border-color:#bca8aa; }
+    .estimated-wta { color:#756568; font-variant-numeric:tabular-nums; }
+    .consumer-panel { border-color:var(--blue-dark); background:var(--blue); box-shadow:0 20px 50px rgba(23,73,111,.16); }
+    .consumer-panel th { background:var(--blue-soft); color:var(--blue-dark); }
+    .consumer-panel tbody tr:nth-child(even) { background:#f7fbfe; }
+    .consumer-panel tbody tr:hover { background:#eaf4fb; }
+    .consumer-panel td:first-child { color:var(--blue-dark); }
+    .consumer-panel .wta-input:focus { outline-color:rgba(36,102,154,.15); border-color:var(--blue); }
+    .consumer-panel input[type="checkbox"] { accent-color:var(--blue); }
+    .simulator-panel { padding:26px; border-color:#d69752; background:var(--orange); box-shadow:0 20px 50px rgba(138,77,22,.14); }
+    .simulator-panel .panel-title { padding:0; color:#522b0b; }
+    .instructions { margin:14px 0 24px; padding:20px 22px; border:1px solid rgba(138,77,22,.25); border-radius:11px; background:rgba(255,255,255,.58); color:#402b19; line-height:1.65; }
+    .simulator-actions { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+    .simulator-button { min-height:52px; border:1px solid var(--orange-dark); border-radius:10px; background:#fffaf4; color:#522b0b; font:700 1rem/1 Inter,ui-sans-serif,system-ui,sans-serif; cursor:pointer; transition:transform .15s ease,background .15s ease; }
+    .simulator-button:hover { background:#fff; transform:translateY(-1px); }
+    .simulator-button:active { transform:translateY(0); }
+    #simulate-button { background:var(--orange-dark); color:#fff; }
+    .simulator-button:disabled { border-color:#9e9994; background:#aaa6a2 !important; color:#e9e7e5 !important; cursor:not-allowed; transform:none; }
+    .preserve-option { width:calc(50% - 6px); margin:13px 0 0 auto; display:flex; align-items:center; gap:10px; color:#522b0b; font-weight:650; cursor:pointer; }
+    .preserve-option input { flex:0 0 auto; accent-color:var(--orange-dark); }
+    .simulation-error { min-height:1.5em; margin:10px 0 0; color:#a3131d; font-weight:750; }
+    .market-summary { margin-top:24px; padding:22px; border:1px solid rgba(138,77,22,.32); border-radius:11px; background:rgba(255,255,255,.68); }
+    .market-summary h3 { margin:0 0 16px; color:#522b0b; font-size:1.15rem; letter-spacing:-.015em; }
+    .summary-list { display:grid; gap:12px; }
+    .summary-row { display:grid; grid-template-columns:minmax(0,1fr) 160px; gap:18px; align-items:center; }
+    .summary-row label { color:#402b19; font-weight:650; }
+    .summary-output { width:100%; min-height:40px; padding:8px 11px; border:1px solid #c89360; border-radius:7px; background:#fff; color:#4d4137; text-align:right; font:700 1rem/1 Inter,ui-sans-serif,system-ui,sans-serif; font-variant-numeric:tabular-nums; cursor:default; }
+    .market-graph-wrap { margin-top:24px; padding:18px; border:1px solid rgba(138,77,22,.25); border-radius:10px; background:#fff; }
+    .market-graph-wrap h4 { margin:0 0 4px; color:#522b0b; font-size:1rem; }
+    .market-graph { display:block; width:100%; height:auto; min-height:320px; }
+    .market-graph text { font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
+    input[type="checkbox"] { width:21px; height:21px; margin:0; accent-color:var(--red); cursor:pointer; }
+    input[type="checkbox"]:disabled { cursor:not-allowed; opacity:.48; }
+    input[type="checkbox"].locked-checkbox { opacity:1; cursor:default; pointer-events:none; transform:scale(1.08); }
+    @media (max-width:700px) { main { width:min(100% - 22px,1180px); padding-top:38px; } h1 { margin-bottom:26px; } .panel-title { padding:18px 20px; } .simulator-panel { padding:20px; } .simulator-panel .panel-title { padding:0; } .table-wrap { margin:0 8px 8px; } .simulator-actions { grid-template-columns:1fr; } .preserve-option { width:100%; } .summary-row { grid-template-columns:1fr; gap:6px; } .summary-output { text-align:left; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Boat Market Simulator</h1>
+    <section class="panel" aria-labelledby="producer-details-title">
+      <h2 class="panel-title" id="producer-details-title">Producer details</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Producer number</th>
+              <th scope="col">Estimated WTAs</th>
+              <th scope="col">True WTAs</th>
+              <th scope="col">Produces in your economy?</th>
+              <th scope="col">Produces in equilibrium?</th>
+            </tr>
+          </thead>
+          <tbody id="producer-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel consumer-panel" aria-labelledby="consumer-details-title">
+      <h2 class="panel-title" id="consumer-details-title">Consumer details</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Consumer number</th>
+              <th scope="col">Estimated WTPs</th>
+              <th scope="col">True WTPs</th>
+              <th scope="col">Consumes in your economy?</th>
+              <th scope="col">Consumes in equilibrium?</th>
+            </tr>
+          </thead>
+          <tbody id="consumer-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel simulator-panel" aria-labelledby="simulator-title">
+      <h2 class="panel-title" id="simulator-title">Simulator</h2>
+      <div class="instructions">
+        This simulator will help you evaluate how your proposed allocation compares to what would arise in a free-market equilibrium. To begin, please select the producers and consumers who will produce and consume. There must be the same number of each. Once you are ready, press the "Simulate" button. Your entries will be locked in and true values for the WTP and WTA will be calculated according to the parameters in the case. The table will be updated with this information and with information about which parties would participate in equilibrium. Any case where your suggestion is different than the equilibrium allocation is highlighted. The panel below shows a summary of market performance. To start over, click "Clear".
+      </div>
+      <div class="simulator-actions">
+        <button class="simulator-button" id="simulate-button" type="button">Simulate</button>
+        <button class="simulator-button" id="clear-button" type="button">Clear</button>
+      </div>
+      <label class="preserve-option" for="preserve-selections">
+        <input id="preserve-selections" type="checkbox">
+        <span>Preserve Consumer/Producer Selections</span>
+      </label>
+      <p class="simulation-error" id="simulation-error" role="alert" aria-live="assertive"></p>
+      <section class="market-summary" aria-labelledby="market-summary-title">
+        <h3 id="market-summary-title">Market Summary</h3>
+        <div class="summary-list">
+          <div class="summary-row">
+            <label for="market-transactions">Number of transactions in your market:</label>
+            <input class="summary-output" id="market-transactions" type="text" readonly>
+          </div>
+          <div class="summary-row">
+            <label for="equilibrium-transactions">Number of transactions in equilibrium:</label>
+            <input class="summary-output" id="equilibrium-transactions" type="text" readonly>
+          </div>
+          <div class="summary-row">
+            <label for="market-surplus">Total surplus in your market:</label>
+            <input class="summary-output" id="market-surplus" type="text" readonly>
+          </div>
+          <div class="summary-row">
+            <label for="equilibrium-surplus">Total surplus in equilbrium:</label>
+            <input class="summary-output" id="equilibrium-surplus" type="text" readonly>
+          </div>
+        </div>
+        <div class="market-graph-wrap" id="market-graph-wrap" hidden>
+          <h4>Market Supply and Demand</h4>
+          <svg class="market-graph" id="market-graph" viewBox="0 0 900 430" role="img" aria-label="Demand and supply graph using sorted true WTP and WTA values"></svg>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script>
+    const currency = new Intl.NumberFormat('en-US', {
+      style:'currency',
+      currency:'USD',
+      maximumFractionDigits:0
+    });
+    const estimatedWTAs = [48000,50000,45000,10000,60000,52000,51000,54000,30000,70000];
+    const estimatedWTPs = [48000,50000,51000,52000,60000,49000,5000,15000,75000,47000];
+
+    const producerRows = document.getElementById('producer-rows');
+    producerRows.innerHTML = Array.from({ length:10 }, (_,index) => {
+      const producerNumber=index+1;
+      return `
+        <tr data-producer="${producerNumber}">
+          <td>${producerNumber}</td>
+          <td class="estimated-wta" data-estimated-wta="${estimatedWTAs[index]}">${currency.format(estimatedWTAs[index])}</td>
+          <td><input class="wta-input true-wta" type="text" aria-label="True WTA for producer ${producerNumber}" readonly></td>
+          <td><input class="producer-selection" type="checkbox" aria-label="Producer ${producerNumber} produces in your economy"></td>
+          <td><input class="producer-equilibrium" type="checkbox" aria-label="Producer ${producerNumber} produces in equilibrium" disabled></td>
+        </tr>`;
+    }).join('');
+
+    const consumerRows = document.getElementById('consumer-rows');
+    consumerRows.innerHTML = Array.from({ length:10 }, (_,index) => {
+      const consumerNumber=index+1;
+      return `
+        <tr data-consumer="${consumerNumber}">
+          <td>${consumerNumber}</td>
+          <td class="estimated-wta" data-estimated-wtp="${estimatedWTPs[index]}">${currency.format(estimatedWTPs[index])}</td>
+          <td><input class="wta-input true-wtp" type="text" aria-label="True WTP for consumer ${consumerNumber}" readonly></td>
+          <td><input class="consumer-selection" type="checkbox" aria-label="Consumer ${consumerNumber} consumes in your economy"></td>
+          <td><input class="consumer-equilibrium" type="checkbox" aria-label="Consumer ${consumerNumber} consumes in equilibrium" disabled></td>
+        </tr>`;
+    }).join('');
+
+    const simulateButton = document.getElementById('simulate-button');
+    const clearButton = document.getElementById('clear-button');
+    const preserveSelections = document.getElementById('preserve-selections');
+    const simulationError = document.getElementById('simulation-error');
+    const producerSelections = [...document.querySelectorAll('.producer-selection')];
+    const consumerSelections = [...document.querySelectorAll('.consumer-selection')];
+    const trueWTAFields = [...document.querySelectorAll('.true-wta')];
+    const trueWTPFields = [...document.querySelectorAll('.true-wtp')];
+    const producerEquilibriumBoxes = [...document.querySelectorAll('.producer-equilibrium')];
+    const consumerEquilibriumBoxes = [...document.querySelectorAll('.consumer-equilibrium')];
+
+    function normalMultiplier() {
+      let firstDraw = 0;
+      let secondDraw = 0;
+      while (firstDraw === 0) firstDraw = Math.random();
+      while (secondDraw === 0) secondDraw = Math.random();
+      const standardNormal = Math.sqrt(-2 * Math.log(firstDraw)) * Math.cos(2 * Math.PI * secondDraw);
+      return 1 + 0.1 * standardNormal;
+    }
+
+    function createTrueValues(estimates, fields) {
+      return estimates.map((estimate, index) => {
+        const trueValue = Math.round(estimate * normalMultiplier());
+        fields[index].value = currency.format(trueValue);
+        fields[index].dataset.trueValue = trueValue;
+        return trueValue;
+      });
+    }
+
+    function calculateEquilibrium(trueWTAs, trueWTPs) {
+      const sortedWTPs = trueWTPs
+        .map((value, index) => ({ value, index }))
+        .sort((first, second) => second.value - first.value);
+      const sortedWTAs = trueWTAs
+        .map((value, index) => ({ value, index }))
+        .sort((first, second) => first.value - second.value);
+      const gainsFromTrade = sortedWTPs.map((consumer, index) => {
+        return consumer.value - sortedWTAs[index].value;
+      });
+      const transactionCount = gainsFromTrade.filter(value => value > 0).length;
+
+      producerEquilibriumBoxes.forEach(box => box.checked = false);
+      consumerEquilibriumBoxes.forEach(box => box.checked = false);
+      sortedWTAs.slice(0, transactionCount).forEach(producer => {
+        producerEquilibriumBoxes[producer.index].checked = true;
+      });
+      sortedWTPs.slice(0, transactionCount).forEach(consumer => {
+        consumerEquilibriumBoxes[consumer.index].checked = true;
+      });
+
+      document.getElementById('equilibrium-transactions').value = transactionCount;
+      return { sortedWTPs, sortedWTAs, gainsFromTrade, transactionCount };
+    }
+
+    function visuallyLockCheckbox(box) {
+      box.disabled = false;
+      box.classList.add('locked-checkbox');
+      box.tabIndex = -1;
+      box.setAttribute('aria-disabled', 'true');
+    }
+
+    function highlightAllocationDifferences() {
+      producerSelections.forEach((selection, index) => {
+        selection.closest('tr').classList.toggle(
+          'allocation-mismatch',
+          selection.checked !== producerEquilibriumBoxes[index].checked
+        );
+      });
+      consumerSelections.forEach((selection, index) => {
+        selection.closest('tr').classList.toggle(
+          'allocation-mismatch',
+          selection.checked !== consumerEquilibriumBoxes[index].checked
+        );
+      });
+    }
+
+    function renderMarketGraph(trueWTAs, trueWTPs) {
+      const svg = document.getElementById('market-graph');
+      const graphWrap = document.getElementById('market-graph-wrap');
+      const demand = trueWTPs
+        .map((value, index) => ({ value, participantNumber:index + 1 }))
+        .sort((first, second) => second.value - first.value);
+      const supply = trueWTAs
+        .map((value, index) => ({ value, participantNumber:index + 1 }))
+        .sort((first, second) => first.value - second.value);
+      const width = 900;
+      const height = 430;
+      const margin = { top:52, right:34, bottom:76, left:92 };
+      const plotWidth = width - margin.left - margin.right;
+      const plotHeight = height - margin.top - margin.bottom;
+      const maximum = Math.max(...demand.map(point => point.value), ...supply.map(point => point.value));
+      const yMaximum = Math.max(1000, Math.ceil(maximum / 10000) * 10000);
+      const xPosition = index => margin.left + (index / 9) * plotWidth;
+      const yPosition = value => margin.top + plotHeight - (value / yMaximum) * plotHeight;
+      const formatAxisCurrency = value => value === 0 ? '$0' : `$${Math.round(value / 1000)}k`;
+      const demandPoints = demand.map((point, index) => `${xPosition(index)},${yPosition(point.value)}`).join(' ');
+      const supplyPoints = supply.map((point, index) => `${xPosition(index)},${yPosition(point.value)}`).join(' ');
+      const yTicks = Array.from({ length:6 }, (_, index) => index * yMaximum / 5);
+
+      const horizontalGrid = yTicks.map(value => `
+        <line x1="${margin.left}" y1="${yPosition(value)}" x2="${width - margin.right}" y2="${yPosition(value)}" stroke="#e7d9c9" stroke-width="1"/>
+        <text x="${margin.left - 12}" y="${yPosition(value) + 4}" text-anchor="end" fill="#725d4b" font-size="12">${formatAxisCurrency(value)}</text>
+      `).join('');
+      const xTicks = Array.from({ length:10 }, (_, index) => `
+        <line x1="${xPosition(index)}" y1="${height - margin.bottom}" x2="${xPosition(index)}" y2="${height - margin.bottom + 6}" stroke="#57483c" stroke-width="1"/>
+        <text x="${xPosition(index)}" y="${height - margin.bottom + 24}" text-anchor="middle" fill="#57483c" font-size="12">${index + 1}</text>
+      `).join('');
+      const demandDots = demand.map((point, index) => `
+        <circle cx="${xPosition(index)}" cy="${yPosition(point.value)}" r="5" fill="#24669a" stroke="#fff" stroke-width="2"><title>Consumer ${point.participantNumber}: ${currency.format(point.value)}</title></circle>
+        <text x="${xPosition(index)}" y="${yPosition(point.value) + (point.value >= supply[index].value ? -11 : 20)}" text-anchor="middle" fill="#17496f" font-size="11" font-weight="800">C${point.participantNumber}</text>
+      `).join('');
+      const supplyDots = supply.map((point, index) => `
+        <circle cx="${xPosition(index)}" cy="${yPosition(point.value)}" r="5" fill="#a7262f" stroke="#fff" stroke-width="2"><title>Producer ${point.participantNumber}: ${currency.format(point.value)}</title></circle>
+        <text x="${xPosition(index)}" y="${yPosition(point.value) + (point.value > demand[index].value ? -11 : 20)}" text-anchor="middle" fill="#7f1821" font-size="11" font-weight="800">P${point.participantNumber}</text>
+      `).join('');
+
+      svg.innerHTML = `
+        ${horizontalGrid}
+        <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${height - margin.bottom}" stroke="#57483c" stroke-width="1.5"/>
+        <line x1="${margin.left}" y1="${height - margin.bottom}" x2="${width - margin.right}" y2="${height - margin.bottom}" stroke="#57483c" stroke-width="1.5"/>
+        ${xTicks}
+        <polyline points="${demandPoints}" fill="none" stroke="#24669a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="${supplyPoints}" fill="none" stroke="#a7262f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        ${demandDots}${supplyDots}
+        <text x="${margin.left + plotWidth / 2}" y="${height - 18}" text-anchor="middle" fill="#3f332a" font-size="14" font-weight="700">Boats Produced/Consumed</text>
+        <text x="22" y="${margin.top + plotHeight / 2}" text-anchor="middle" fill="#3f332a" font-size="14" font-weight="700" transform="rotate(-90 22 ${margin.top + plotHeight / 2})">True WTP/WTA</text>
+        <line x1="${width - 220}" y1="24" x2="${width - 190}" y2="24" stroke="#24669a" stroke-width="3"/><text x="${width - 180}" y="29" fill="#24669a" font-size="13" font-weight="700">Demand</text>
+        <line x1="${width - 112}" y1="24" x2="${width - 82}" y2="24" stroke="#a7262f" stroke-width="3"/><text x="${width - 72}" y="29" fill="#a7262f" font-size="13" font-weight="700">Supply</text>
+      `;
+      graphWrap.hidden = false;
+    }
+
+    simulateButton.addEventListener('click', () => {
+      simulateButton.disabled = true;
+      simulationError.textContent = '';
+
+      const selectedProducers = producerSelections.filter(box => box.checked).length;
+      const selectedConsumers = consumerSelections.filter(box => box.checked).length;
+
+      if (selectedProducers !== selectedConsumers) {
+        simulationError.textContent = 'Error, unequal numbers of buyers and sellers. Please press clear and retry.';
+        return;
+      }
+
+      document.getElementById('market-transactions').value = selectedProducers;
+      const trueWTAs = createTrueValues(estimatedWTAs, trueWTAFields);
+      const trueWTPs = createTrueValues(estimatedWTPs, trueWTPFields);
+      calculateEquilibrium(trueWTAs, trueWTPs);
+      highlightAllocationDifferences();
+      renderMarketGraph(trueWTAs, trueWTPs);
+      const selectedWTA = trueWTAs.reduce((sum, value, index) => sum + (producerSelections[index].checked ? value : 0), 0);
+      const selectedWTP = trueWTPs.reduce((sum, value, index) => sum + (consumerSelections[index].checked ? value : 0), 0);
+      const equilibriumWTA = trueWTAs.reduce((sum, value, index) => sum + (producerEquilibriumBoxes[index].checked ? value : 0), 0);
+      const equilibriumWTP = trueWTPs.reduce((sum, value, index) => sum + (consumerEquilibriumBoxes[index].checked ? value : 0), 0);
+      document.getElementById('market-surplus').value = currency.format(selectedWTP - selectedWTA);
+      document.getElementById('equilibrium-surplus').value = currency.format(equilibriumWTP - equilibriumWTA);
+
+      [...producerSelections, ...consumerSelections, ...producerEquilibriumBoxes, ...consumerEquilibriumBoxes]
+        .forEach(visuallyLockCheckbox);
+    });
+
+    clearButton.addEventListener('click', () => {
+      simulateButton.disabled = false;
+      simulationError.textContent = '';
+      [...producerSelections, ...consumerSelections].forEach(box => {
+        if (!preserveSelections.checked) box.checked = false;
+        box.disabled = false;
+        box.classList.remove('locked-checkbox');
+        box.removeAttribute('tabindex');
+        box.removeAttribute('aria-disabled');
+      });
+      [...trueWTAFields, ...trueWTPFields].forEach(field => {
+        field.value = '';
+        delete field.dataset.trueValue;
+      });
+      [...producerEquilibriumBoxes, ...consumerEquilibriumBoxes].forEach(box => {
+        box.checked = false;
+        box.disabled = true;
+        box.classList.remove('locked-checkbox');
+        box.removeAttribute('tabindex');
+        box.removeAttribute('aria-disabled');
+      });
+      document.querySelectorAll('.summary-output').forEach(field => field.value = '');
+      document.querySelectorAll('.allocation-mismatch').forEach(row => row.classList.remove('allocation-mismatch'));
+      document.getElementById('market-graph').innerHTML = '';
+      document.getElementById('market-graph-wrap').hidden = true;
+    });
+  </script>
+</body>
+</html>
